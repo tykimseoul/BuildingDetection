@@ -1,3 +1,6 @@
 .idea
 venv/bin
 venv/lib
+AOI_4_Shanghai_Test
+AOI_4_Shanghai_Train
+train_data
