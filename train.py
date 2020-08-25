@@ -6,7 +6,7 @@ from keras.preprocessing.image import ImageDataGenerator
 import numpy as np
 
 
-def unet(pretrained_weights=None, input_size=(256, 256, 1)):
+def unet(pretrained_weights=None, input_size=(256, 256, 3)):
     inputs = Input(input_size)
     conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(inputs)
     conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv1)
@@ -48,8 +48,8 @@ def unet(pretrained_weights=None, input_size=(256, 256, 1)):
     merge9 = concatenate([conv1, up9], axis=3)
     conv9 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge9)
     conv9 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
-    conv9 = Conv2D(2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
-    conv10 = Conv2D(1, 1, activation='sigmoid')(conv9)
+    conv9 = Conv2D(9, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+    conv10 = Conv2D(3, 1, activation='sigmoid')(conv9)
 
     model = Model(inputs, conv10)
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
                          zoom_range=0.05,
                          horizontal_flip=True,
                          fill_mode='nearest')
-    myGene = train_data_generator(2, './train_data', 'rgb', 'mask', data_gen_args, save_to_dir=None)
+    myGene = train_data_generator(2, './train_data', 'rgb', 'mask', data_gen_args, image_color_mode="rgb", mask_color_mode="grayscale", save_to_dir=None)
     model = unet()
     model_checkpoint = ModelCheckpoint('unet_membrane.hdf5', monitor='loss', verbose=1, save_best_only=True)
     model.fit_generator(myGene, steps_per_epoch=2000, epochs=5, callbacks=[model_checkpoint])

@@ -4,3 +4,6 @@ venv/lib
 AOI_4_Shanghai_Test
 AOI_4_Shanghai_Train
 train_data
+test_data
+__pycache__
+*.hdf5
