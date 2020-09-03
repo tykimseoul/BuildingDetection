@@ -40,7 +40,7 @@ def normalize_channel(tif, idx):
 
 
 def save_image(data, path, interp):
-    data = cv2.resize(data, dsize=(512, 512), interpolation=interp)
+    data = cv2.resize(data, dsize=(224, 224), interpolation=interp)
     cv2.imwrite(path, data)
 
 
@@ -58,13 +58,13 @@ def file_id(file_name):
 if __name__ == "__main__":
     train_images = sorted(os.listdir('./AOI_4_Shanghai_Train/RGB-PanSharpen'), key=file_id)
     print(train_images)
-    for image in train_images[:100]:
+    for image in train_images[:1000]:
         id = file_id(image)
         print(id)
         mask_image(id)
     test_images = sorted(os.listdir('./AOI_4_Shanghai_Test/RGB-PanSharpen'), key=file_id)
     print(test_images)
-    for image in test_images[:100]:
+    for image in test_images[:1000]:
         id = file_id(image)
         print(id)
         mask_image(id, training=False)
