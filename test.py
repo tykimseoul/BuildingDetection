@@ -1,7 +1,6 @@
 import os
-import numpy as np
 import cv2
-from train import unet
+from train import *
 
 Sky = [128, 128, 128]
 Building = [128, 0, 0]
@@ -24,7 +23,7 @@ def test_generator(test_path, target_size=(256, 256), flag_multi_class=True):
         print(i)
         img = cv2.imread(test_path + i)
         img = img / 255
-        # img = np.reshape(img, img.shape + (1,)) if (not flag_multi_class) else img
+        img = cv2.resize(img, dsize=target_size, interpolation=cv2.INTER_NEAREST)
         img = np.reshape(img, (1,) + img.shape)
         yield img
 
@@ -41,12 +40,12 @@ def save_result(npyfile, flag_multi_class=False, num_class=2):
     print(npyfile.shape)
     for i, item in enumerate(npyfile):
         print(item.shape)
-        img = label_visualize(num_class, COLOR_DICT, item) if flag_multi_class else item[:, :, 0] * 255
+        img = item[:, :, 0] * 255 // 128 * 255
         cv2.imwrite('./results/Shanghai_img{}.png'.format(i), img)
 
 
 testGene = test_generator('./test_data/rgb/')
-model = unet()
-model.load_weights("unet_membrane.hdf5")
+model = Unet(pretrained=True)
+model.load_weights("unet_membrane (5).hdf5")
 results = model.predict(testGene, 30, verbose=1)
 save_result(results)
