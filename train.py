@@ -4,7 +4,17 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.applications import MobileNetV2
 from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.metrics import *
+import tensorflow as tf
 import numpy as np
+
+
+class MaskMeanIoU(tf.keras.metrics.MeanIoU):
+    """Mean Intersection over Union """
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        y_pred = tf.argmax(y_pred, axis=-1)
+        return super().update_state(y_true, y_pred, sample_weight=sample_weight)
 
 
 class Unet:
@@ -105,7 +115,7 @@ class Unet:
 
             model = Model(inputs, conv10)
 
-        model.compile(optimizer=Adam(lr=1e-4), loss='binary_crossentropy', metrics=['accuracy'])
+        model.compile(optimizer=Adam(lr=1e-4), loss='binary_crossentropy', metrics=[MaskMeanIoU(name='iou', num_classes=3)])
 
         model.summary()
 
