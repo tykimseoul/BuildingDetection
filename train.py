@@ -4,17 +4,64 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras.callbacks import *
 from tensorflow.keras.applications import MobileNetV2
 from keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.metrics import *
+import tensorflow.keras.backend as K
 import tensorflow as tf
 import numpy as np
 
 
-class MaskMeanIoU(tf.keras.metrics.MeanIoU):
-    """Mean Intersection over Union """
+def cast_f(x):
+    return K.cast(x, K.floatx())
 
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_pred = tf.argmax(y_pred, axis=-1)
-        return super().update_state(y_true, y_pred, sample_weight=sample_weight)
+
+def cast_b(x):
+    return K.cast(x, bool)
+
+
+def iou_loss_core(true, pred):  # this can be used as a loss if you make it negative
+    intersection = true * pred
+    not_true = 1 - true
+    union = true + (not_true * pred)
+
+    return (K.sum(intersection, axis=-1) + K.epsilon()) / (K.sum(union, axis=-1) + K.epsilon())
+
+
+def iou_metric(true, pred):  # any shape can go - can't be a loss function
+
+    thresholds = [0.5 + (i * .05) for i in range(10)]
+
+    # flattened images (batch, pixels)
+    true = K.batch_flatten(true)
+    pred = K.batch_flatten(pred)
+    pred = cast_f(K.greater(pred, 0.5))
+
+    # total white pixels - (batch,)
+    true_sum = K.sum(true, axis=-1)
+    pred_sum = K.sum(pred, axis=-1)
+
+    # has mask or not per image - (batch,)
+    true1 = cast_f(K.greater(true_sum, 1))
+    pred1 = cast_f(K.greater(pred_sum, 1))
+
+    # to get images that have mask in both true and pred
+    true_positive_mask = cast_b(true1 * pred1)
+
+    # separating only the possible true positives to check iou
+    test_true = tf.boolean_mask(true, true_positive_mask)
+    test_pred = tf.boolean_mask(pred, true_positive_mask)
+
+    # getting iou and threshold comparisons
+    iou = iou_loss_core(test_true, test_pred)
+    true_positives = [cast_f(K.greater(iou, tres)) for tres in thresholds]
+
+    # mean of thresholds for true positives and total sum
+    true_positives = K.mean(K.stack(true_positives, axis=-1), axis=-1)
+    true_positives = K.sum(true_positives)
+
+    # to get images that don't have mask in both true and pred
+    true_negatives = (1 - true1) * (1 - pred1)  # = 1 -true1 - pred1 + true1*pred1
+    true_negatives = K.sum(true_negatives)
+
+    return (true_positives + true_negatives) / cast_f(K.shape(true)[0])
 
 
 class Unet:
@@ -111,11 +158,11 @@ class Unet:
             conv9 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge9)
             conv9 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
             conv9 = Conv2D(9, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
-            conv10 = Conv2D(3, 1, activation='sigmoid')(conv9)
+            conv10 = Conv2D(1, 1, activation='sigmoid')(conv9)
 
             model = Model(inputs, conv10)
 
-        model.compile(optimizer=Adam(lr=1e-4), loss='binary_crossentropy', metrics=[MaskMeanIoU(name='iou', num_classes=3)])
+        model.compile(optimizer=Adam(lr=1e-4), loss='binary_crossentropy', metrics=[iou_metric])
 
         model.summary()
 
@@ -158,6 +205,8 @@ def train_data_generator(batch_size, train_path, image_folder, mask_folder, aug_
     use the same seed for image_datagen and mask_datagen to ensure the transformation for image and mask is the same
     if you want to visualize the results of generator, set save_to_dir = "your path"
     """
+    count = 0
+    train_size = 2000
     image_datagen = ImageDataGenerator(**aug_dict)
     mask_datagen = ImageDataGenerator(**aug_dict)
     image_generator = image_datagen.flow_from_directory(
@@ -182,6 +231,9 @@ def train_data_generator(batch_size, train_path, image_folder, mask_folder, aug_
         seed=seed)
     train_generator = zip(image_generator, mask_generator)
     for (img, mask) in train_generator:
+        count += 1
+        if count > train_size:
+            return
         img, mask = adjust_data(img, mask, flag_multi_class, num_class)
         yield img, mask
 
