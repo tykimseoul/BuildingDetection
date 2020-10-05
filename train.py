@@ -205,8 +205,6 @@ def train_data_generator(batch_size, train_path, image_folder, mask_folder, aug_
     use the same seed for image_datagen and mask_datagen to ensure the transformation for image and mask is the same
     if you want to visualize the results of generator, set save_to_dir = "your path"
     """
-    count = 0
-    train_size = 2000
     image_datagen = ImageDataGenerator(**aug_dict)
     mask_datagen = ImageDataGenerator(**aug_dict)
     image_generator = image_datagen.flow_from_directory(
@@ -231,9 +229,6 @@ def train_data_generator(batch_size, train_path, image_folder, mask_folder, aug_
         seed=seed)
     train_generator = zip(image_generator, mask_generator)
     for (img, mask) in train_generator:
-        count += 1
-        if count > train_size:
-            return
         img, mask = adjust_data(img, mask, flag_multi_class, num_class)
         yield img, mask
 
